@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { insertLead } from "@/lib/db";
+import { insertLead, markLeadSyncedToSellbot } from "@/lib/db";
+import { sendLeadToSellbot } from "@/lib/sellbot";
 
-const baseShape = {
+const schema = z.object({
   nome: z.string().min(3),
   email: z.string().email(),
-  telefone: z.string().min(10),
+  whatsapp: z.string().min(10),
   empresa: z.string().min(2),
-  cargo: z.string().optional(),
-  mensagem: z.string().optional(),
+  cargo: z.string().min(2),
+  tipo_de_produto: z.string().min(1),
+  volume_estimado_paletesmes: z.string().min(1),
+  exige_temperatura_controlada: z.string().min(1),
   consentLgpd: z.literal(true),
-};
-
-const schema = z.object(baseShape).passthrough();
-
-const BASE_KEYS = new Set(Object.keys(baseShape));
+});
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -36,20 +35,18 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
-  const extras: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(data)) {
-    if (!BASE_KEYS.has(k)) extras[k] = v;
-  }
 
+  let leadId: number;
   try {
-    await insertLead({
+    leadId = await insertLead({
       nome: data.nome,
       email: data.email,
-      telefone: data.telefone,
+      whatsapp: data.whatsapp,
       empresa: data.empresa,
-      cargo: data.cargo ?? null,
-      mensagem: data.mensagem ?? null,
-      extras: Object.keys(extras).length ? extras : null,
+      cargo: data.cargo,
+      tipoDeProduto: data.tipo_de_produto,
+      volumeEstimadoPaletesMes: data.volume_estimado_paletesmes,
+      exigeTemperaturaControlada: data.exige_temperatura_controlada,
       consentLgpd: data.consentLgpd,
       persona: process.env.NEXT_PUBLIC_PERSONA ?? null,
     });
@@ -58,6 +55,30 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: "db_error" },
       { status: 500 }
+    );
+  }
+
+  // Envia pro Sellbot — não bloqueia o usuário em caso de falha externa,
+  // apenas marca o status no DB pra retentativa/auditoria.
+  const sellbotResult = await sendLeadToSellbot({
+    nome: data.nome,
+    email: data.email,
+    whatsapp: data.whatsapp,
+    empresa: data.empresa,
+    cargo: data.cargo,
+    tipoDeProduto: data.tipo_de_produto,
+    volumeEstimadoPaletesMes: data.volume_estimado_paletesmes,
+    exigeTemperaturaControlada: data.exige_temperatura_controlada,
+  });
+
+  if (sellbotResult.ok) {
+    await markLeadSyncedToSellbot(leadId, true).catch((e) =>
+      console.error("[LEAD] erro marcando sync", e)
+    );
+  } else {
+    console.error("[LEAD] Sellbot falhou", sellbotResult);
+    await markLeadSyncedToSellbot(leadId, false, sellbotResult.error).catch(
+      (e) => console.error("[LEAD] erro marcando erro sync", e)
     );
   }
 

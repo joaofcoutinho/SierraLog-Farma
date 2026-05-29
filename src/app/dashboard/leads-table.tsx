@@ -16,6 +16,10 @@ function formatDate(iso: string): string {
   });
 }
 
+function whatsappOf(l: LeadRow): string {
+  return l.whatsapp ?? l.telefone ?? "";
+}
+
 function csvEscape(v: unknown): string {
   if (v === null || v === undefined) return "";
   const s = typeof v === "string" ? v : JSON.stringify(v);
@@ -29,26 +33,34 @@ function downloadCsv(leads: LeadRow[]) {
     "criado_em",
     "nome",
     "email",
-    "telefone",
+    "whatsapp",
     "empresa",
     "cargo",
-    "mensagem",
-    "extras",
+    "tipo_de_produto",
+    "volume_estimado_paletesmes",
+    "exige_temperatura_controlada",
     "consent_lgpd",
     "persona",
+    "sellbot_synced",
+    "sellbot_synced_at",
+    "sellbot_error",
   ];
   const rows = leads.map((l) => [
     l.id,
     l.created_at,
     l.nome,
     l.email,
-    l.telefone,
+    whatsappOf(l),
     l.empresa,
     l.cargo,
-    l.mensagem,
-    l.extras,
+    l.tipo_de_produto,
+    l.volume_estimado_paletesmes,
+    l.exige_temperatura_controlada,
     l.consent_lgpd,
     l.persona,
+    l.sellbot_synced,
+    l.sellbot_synced_at,
+    l.sellbot_error,
   ]);
   const csv = [headers.join(","), ...rows.map((r) => r.map(csvEscape).join(","))].join(
     "\n"
@@ -64,6 +76,31 @@ function downloadCsv(leads: LeadRow[]) {
   URL.revokeObjectURL(url);
 }
 
+function SyncBadge({ lead }: { lead: LeadRow }) {
+  if (lead.sellbot_synced) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+        Enviado
+      </span>
+    );
+  }
+  if (lead.sellbot_error) {
+    return (
+      <span
+        className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700"
+        title={lead.sellbot_error}
+      >
+        Falhou
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600">
+      Pendente
+    </span>
+  );
+}
+
 export function LeadsTable({ leads }: { leads: LeadRow[] }) {
   const [query, setQuery] = React.useState("");
   const [selected, setSelected] = React.useState<LeadRow | null>(null);
@@ -72,7 +109,16 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
     const q = query.trim().toLowerCase();
     if (!q) return leads;
     return leads.filter((l) =>
-      [l.nome, l.email, l.telefone, l.empresa, l.cargo, l.mensagem]
+      [
+        l.nome,
+        l.email,
+        whatsappOf(l),
+        l.empresa,
+        l.cargo,
+        l.tipo_de_produto,
+        l.volume_estimado_paletesmes,
+        l.exige_temperatura_controlada,
+      ]
         .filter(Boolean)
         .some((v) => (v as string).toLowerCase().includes(q))
     );
@@ -82,10 +128,10 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Input
-          placeholder="Buscar por nome, e-mail, empresa..."
+          placeholder="Buscar por nome, e-mail, empresa, tipo de produto..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="sm:max-w-sm"
+          className="sm:max-w-md"
         />
         <Button
           variant="secondary"
@@ -104,10 +150,12 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
               <tr>
                 <th className="px-4 py-3 font-semibold">Data</th>
                 <th className="px-4 py-3 font-semibold">Nome</th>
-                <th className="px-4 py-3 font-semibold">E-mail</th>
-                <th className="px-4 py-3 font-semibold">Telefone</th>
                 <th className="px-4 py-3 font-semibold">Empresa</th>
-                <th className="px-4 py-3 font-semibold">Cargo</th>
+                <th className="px-4 py-3 font-semibold">WhatsApp</th>
+                <th className="px-4 py-3 font-semibold">Tipo</th>
+                <th className="px-4 py-3 font-semibold">Volume</th>
+                <th className="px-4 py-3 font-semibold">Temp.</th>
+                <th className="px-4 py-3 font-semibold">CRM</th>
                 <th className="px-4 py-3 font-semibold"></th>
               </tr>
             </thead>
@@ -115,7 +163,7 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
               {filtered.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="px-4 py-12 text-center text-neutral-500"
                   >
                     Nenhum lead encontrado.
@@ -130,19 +178,22 @@ export function LeadsTable({ leads }: { leads: LeadRow[] }) {
                   <td className="px-4 py-3 font-medium text-brand-dark">
                     {l.nome}
                   </td>
-                  <td className="px-4 py-3 text-neutral-700">
-                    <a
-                      href={`mailto:${l.email}`}
-                      className="text-accent hover:underline"
-                    >
-                      {l.email}
-                    </a>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-neutral-700">
-                    {l.telefone}
-                  </td>
                   <td className="px-4 py-3 text-neutral-700">{l.empresa}</td>
-                  <td className="px-4 py-3 text-neutral-700">{l.cargo ?? "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-neutral-700">
+                    {whatsappOf(l)}
+                  </td>
+                  <td className="px-4 py-3 text-neutral-700">
+                    {l.tipo_de_produto ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-neutral-700">
+                    {l.volume_estimado_paletesmes ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-neutral-700">
+                    {l.exige_temperatura_controlada ?? "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <SyncBadge lead={l} />
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"
@@ -173,6 +224,7 @@ function LeadDetails({
   lead: LeadRow;
   onClose: () => void;
 }) {
+  const whatsapp = whatsappOf(lead);
   return (
     <div
       role="dialog"
@@ -206,42 +258,48 @@ function LeadDetails({
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Detail label="E-mail" value={lead.email} link={`mailto:${lead.email}`} />
           <Detail
-            label="Telefone"
-            value={lead.telefone}
-            link={`tel:${lead.telefone.replace(/\D/g, "")}`}
+            label="WhatsApp"
+            value={whatsapp || "—"}
+            link={
+              whatsapp
+                ? `https://wa.me/${whatsapp.replace(/\D/g, "")}`
+                : undefined
+            }
           />
           <Detail label="Empresa" value={lead.empresa} />
           <Detail label="Cargo" value={lead.cargo ?? "—"} />
+          <Detail
+            label="Tipo de produto"
+            value={lead.tipo_de_produto ?? "—"}
+          />
+          <Detail
+            label="Volume estimado (paletes/mês)"
+            value={lead.volume_estimado_paletesmes ?? "—"}
+          />
+          <Detail
+            label="Temperatura controlada"
+            value={lead.exige_temperatura_controlada ?? "—"}
+          />
           <Detail label="Persona" value={lead.persona ?? "—"} />
           <Detail
             label="LGPD"
             value={lead.consent_lgpd ? "Aceito" : "Não aceito"}
           />
+          <Detail
+            label="Sellbot"
+            value={
+              lead.sellbot_synced
+                ? `Enviado${
+                    lead.sellbot_synced_at
+                      ? ` em ${formatDate(lead.sellbot_synced_at)}`
+                      : ""
+                  }`
+                : lead.sellbot_error
+                ? `Falhou: ${lead.sellbot_error}`
+                : "Pendente"
+            }
+          />
         </dl>
-
-        {lead.mensagem && (
-          <div className="mt-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-              Mensagem
-            </p>
-            <p className="mt-2 whitespace-pre-wrap rounded-md bg-neutral-50 p-4 text-sm text-brand-dark">
-              {lead.mensagem}
-            </p>
-          </div>
-        )}
-
-        {lead.extras && Object.keys(lead.extras).length > 0 && (
-          <div className="mt-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-              Campos adicionais
-            </p>
-            <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {Object.entries(lead.extras).map(([k, v]) => (
-                <Detail key={k} label={k} value={String(v)} />
-              ))}
-            </dl>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -263,7 +321,12 @@ function Detail({
       </dt>
       <dd className="mt-1 text-sm text-brand-dark">
         {link ? (
-          <a href={link} className="text-accent hover:underline">
+          <a
+            href={link}
+            target={link.startsWith("http") ? "_blank" : undefined}
+            rel={link.startsWith("http") ? "noreferrer" : undefined}
+            className="text-accent hover:underline"
+          >
             {value}
           </a>
         ) : (

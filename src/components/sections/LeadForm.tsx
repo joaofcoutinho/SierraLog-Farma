@@ -9,7 +9,6 @@ import { z } from "zod";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { maskPhoneBR } from "@/lib/utils";
@@ -18,13 +17,12 @@ import type { ExtraField, LandingContent } from "@/lib/types";
 const baseSchema = z.object({
   nome: z.string().min(3, "Informe seu nome completo."),
   email: z.string().email("E-mail inválido."),
-  telefone: z
+  whatsapp: z
     .string()
-    .min(14, "Telefone inválido.")
-    .max(16, "Telefone inválido."),
+    .min(14, "WhatsApp inválido.")
+    .max(16, "WhatsApp inválido."),
   empresa: z.string().min(2, "Informe a empresa."),
-  cargo: z.string().optional(),
-  mensagem: z.string().optional(),
+  cargo: z.string().min(2, "Informe seu cargo."),
   consentLgpd: z.literal(true, {
     errorMap: () => ({ message: "É necessário aceitar os termos." }),
   }),
@@ -106,6 +104,45 @@ export function LeadForm({ title, subtitle, extraFields, submitLabel }: FormProp
             </Field>
 
             <div className="grid gap-5 md:grid-cols-2">
+              <Field id="empresa" label="Empresa" error={errors.empresa?.message as string | undefined}>
+                <Input
+                  id="empresa"
+                  autoComplete="organization"
+                  aria-invalid={!!errors.empresa}
+                  {...register("empresa")}
+                />
+              </Field>
+              <Field id="cargo" label="Cargo" error={errors.cargo?.message as string | undefined}>
+                <Input
+                  id="cargo"
+                  autoComplete="organization-title"
+                  aria-invalid={!!errors.cargo}
+                  {...register("cargo")}
+                />
+              </Field>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field
+                id="whatsapp"
+                label="WhatsApp"
+                error={errors.whatsapp?.message as string | undefined}
+              >
+                <Input
+                  id="whatsapp"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="(11) 99999-9999"
+                  aria-invalid={!!errors.whatsapp}
+                  {...register("whatsapp")}
+                  onChange={(e) => {
+                    setValue("whatsapp", maskPhoneBR(e.target.value), {
+                      shouldValidate: true,
+                    });
+                  }}
+                />
+              </Field>
               <Field
                 id="email"
                 label="E-mail corporativo"
@@ -117,44 +154,6 @@ export function LeadForm({ title, subtitle, extraFields, submitLabel }: FormProp
                   autoComplete="email"
                   aria-invalid={!!errors.email}
                   {...register("email")}
-                />
-              </Field>
-              <Field
-                id="telefone"
-                label="Telefone / WhatsApp"
-                error={errors.telefone?.message as string | undefined}
-              >
-                <Input
-                  id="telefone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="(11) 99999-9999"
-                  aria-invalid={!!errors.telefone}
-                  {...register("telefone")}
-                  onChange={(e) => {
-                    setValue("telefone", maskPhoneBR(e.target.value), {
-                      shouldValidate: true,
-                    });
-                  }}
-                />
-              </Field>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-2">
-              <Field id="empresa" label="Empresa" error={errors.empresa?.message as string | undefined}>
-                <Input
-                  id="empresa"
-                  autoComplete="organization"
-                  aria-invalid={!!errors.empresa}
-                  {...register("empresa")}
-                />
-              </Field>
-              <Field id="cargo" label="Cargo (opcional)">
-                <Input
-                  id="cargo"
-                  autoComplete="organization-title"
-                  {...register("cargo")}
                 />
               </Field>
             </div>
@@ -230,15 +229,6 @@ export function LeadForm({ title, subtitle, extraFields, submitLabel }: FormProp
                 </Field>
               );
             })}
-
-            <Field id="mensagem" label="Mensagem (opcional)">
-              <Textarea
-                id="mensagem"
-                rows={4}
-                placeholder="Conte um pouco sobre sua operação."
-                {...register("mensagem")}
-              />
-            </Field>
 
             <label className="flex items-start gap-3 text-sm text-neutral-600">
               <input

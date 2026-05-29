@@ -92,22 +92,25 @@ export const content: LandingContent = {
     subtitle: "Preencha e nosso time comercial entra em contato.",
     extraFields: [
       {
-        name: "categoria",
-        label: "Categoria do produto",
-        type: "select",
-        options: ["Medicamentos", "Correlatos", "Cosméticos", "Suplementos", "Outros"],
-      },
-      {
-        name: "cadeiaFria",
-        label: "Necessita cadeia fria?",
+        name: "tipo_de_produto",
+        label: "Tipo de produto",
         type: "radio",
-        options: ["Sim", "Não"],
+        options: ["Medicamento", "Suplemento", "Cosmético", "Produto hospitalar"],
       },
       {
-        name: "volume",
-        label: "Volume mensal estimado",
-        type: "select",
-        options: ["Pequeno", "Médio", "Grande"],
+        name: "volume_estimado_paletesmes",
+        label: "Volume estimado (paletes/mês)",
+        type: "text",
+      },
+      {
+        name: "exige_temperatura_controlada",
+        label: "Exige temperatura controlada?",
+        type: "radio",
+        options: [
+          "Sim, câmara fria",
+          "Sim, climatizado",
+          "Temperatura ambiente",
+        ],
       },
     ],
     submitLabel: "Quero falar com um especialista",
